@@ -50,10 +50,10 @@ Follow these steps in a Google Colab notebook to run the AHA benchmark:
    # 3. Run examples
    # 3.1 A simple example. The'--run-analysis' option saves & combines results in csv files.
    # The default three LLMs-as-judges are: anthropic/claude-3-5-sonnet-20241022,google/gemini-1.5-pro-002,openai/gpt-4o-2024-08-06
-   !python /content/aha/aha.py --model 'anthropic/claude-3-5-haiku-20241022' --batch_size 2 --run-analysis
+   !python aha.py --model 'anthropic/claude-3-5-haiku-20241022' --batch_size 2 --run-analysis
    
    # 3.2 A longer example with more options explicitly set (see aha.py for all options):
-   !python /content/aha/aha.py \
+   !python aha.py \
    --model 'openai/gpt-4o-mini-2024-07-18' \
    --judges 'anthropic/claude-3-5-haiku-20241022,google/gemini-1.5-flash-002,openai/gpt-4o-mini-2024-07-18' \
    --batch_size 2 --num_batches 2 \
@@ -63,20 +63,20 @@ Follow these steps in a Google Colab notebook to run the AHA benchmark:
    # 4. Standard evaluations (uncomment to run) 
    
    # 4.1 Small sample (default, 100 questions)
-   # !python /content/aha/aha.py --model 'anthropic/claude-3-5-haiku-20241022' --shuffle --run-analysis
+   # !python aha.py --model 'anthropic/claude-3-5-haiku-20241022' --shuffle --run-analysis
    
    # 4.2 Full sample (3045 questions)
-   # !python /content/aha/aha.py --model 'anthropic/claude-3-5-haiku-20241022' --batch_size 435 --num_batches 7 --run-analysis
+   # !python aha.py --model 'anthropic/claude-3-5-haiku-20241022' --batch_size 435 --num_batches 7 --run-analysis
 
    # For additional analysis, including self-preference adjustments for LLMs-as-judges, and related models:
    # !pip install krippendorff
-   # !python /content/aha/results_summary_raw.py
-   # !python /content/aha/results_summary.py
+   # !python results_summary_raw.py
+   # !python results_summary.py
 
    # More scripts for analysis:
-   # !python /content/aha/tag_analysis.py
-   # !python /content/aha/figures_final.py #NB! Uses hardcoded values.
-   # !python /content/aha/pairwise_comparison.py #NB!BETA. Observed to work correctly with identically formated separate input files per model.  
+   # !python tag_analysis.py
+   # !python figures_final.py #NB! Uses hardcoded values.
+   # !python pairwise_comparison.py #NB!BETA. Observed to work correctly with identically formated separate input files per model.  
 
    # It can be useful to store and retrieve files remotely:
    # from google.colab import drive

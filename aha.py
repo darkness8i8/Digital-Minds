@@ -13,11 +13,6 @@ nest_asyncio.apply()
 from inspect_ai import Task, task, eval
 from inspect_ai.dataset import Sample, json_dataset
 from inspect_ai.solver import generate
-from scoring import SOLVER_INSTRUCTIONS, final_digit_model_graded_qa
-from utils import (
-    setup_logging, mkd, read_json, write_json,
-    get_latest_file, combine_csv_files
-)
 
 setup_logging(logging.INFO)
 logging.getLogger("inspect_ai.model").setLevel(logging.INFO)
@@ -29,8 +24,8 @@ class Config:
         self.model = args.model
         self.judges = args.judges.split(',')
         self.openai_base_url = args.openai_base_url
-        self.dataset_path = Path(args.dataset) if args.dataset else Path("/content/aha/data_public.json")
-        self.output_dir = Path(args.output_dir) if args.output_dir else Path("/content/aha/results")
+        self.dataset_path = Path(args.dataset) if args.dataset else Path("data_public.json")
+        self.output_dir = Path(args.output_dir) if args.output_dir else Path("results")
         self.batch_size = args.batch_size
         self.seed = args.seed
         self.shuffle = args.shuffle
@@ -177,7 +172,7 @@ def main():
                 latest = get_latest_file(ldir, "*.eval")
                 if latest:
                     cmd = (
-                        f"python /content/aha/analysis.py "
+                        f"python analysis.py "
                         f"--log-file {latest} "
                         f"--output-dir {config.output_dir} "
                         f"--solver-name '{config.model}'"
@@ -197,7 +192,7 @@ def main():
             if cpath.exists():
                 logging.info("Final analysis on combined_results.csv...")
                 cmd = (
-                    f"python /content/aha/analysis.py "
+                    f"python analysis.py "
                     f"--csv-file {cpath} "
                     f"--output-dir {config.output_dir}"
                 )

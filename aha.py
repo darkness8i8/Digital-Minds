@@ -13,6 +13,11 @@ nest_asyncio.apply()
 from inspect_ai import Task, task, eval
 from inspect_ai.dataset import Sample, json_dataset
 from inspect_ai.solver import generate
+from scoring import SOLVER_INSTRUCTIONS, final_digit_model_graded_qa
+from utils import (
+    setup_logging, mkd, read_json, write_json,
+    get_latest_file, combine_csv_files
+)
 
 setup_logging(logging.INFO)
 logging.getLogger("inspect_ai.model").setLevel(logging.INFO)

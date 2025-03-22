@@ -34,19 +34,20 @@ Follow these steps in a Google Colab notebook to run the AHA benchmark:
 
    ```
    # 1. Clone the files
-   from google.colab import userdata
    !git clone https://github.com/AI-for-Animals/aha.git aha
+   %cd /content/aha 
    
-   # 2. Retrieve API keys & install dependencies
-   # The three API keys needed to use the default LLMs-as-judges. Specify fewer/other judges if needed (see how in 3.2).
-   import os
-   os.environ['ANTHROPIC_API_KEY'] = userdata.get('ANTHROPIC_API_KEY')
-   os.environ['GOOGLE_API_KEY'] = userdata.get('GOOGLE_API_KEY')
-   os.environ['OPENAI_API_KEY'] = userdata.get('OPENAI_API_KEY')
+   # 2.1 install dependencies. If necessary, restart session.
    !pip install inspect-ai anthropic google-generativeai openai
    !pip install --upgrade google-genai
 
-   
+   # 2.2 Retrieve API keys. The three API keys needed to use the default LLMs-as-judges. Specify fewer/other judges if needed (see how in 3.2).
+   import os
+   from google.colab import userdata
+   os.environ['ANTHROPIC_API_KEY'] = userdata.get('ANTHROPIC_API_KEY')
+   os.environ['GOOGLE_API_KEY'] = userdata.get('GOOGLE_API_KEY')
+   os.environ['OPENAI_API_KEY'] = userdata.get('OPENAI_API_KEY')
+
    # 3. Run examples
    # 3.1 A simple example. The'--run-analysis' option saves & combines results in csv files.
    # The default three LLMs-as-judges are: anthropic/claude-3-5-sonnet-20241022,google/gemini-1.5-pro-002,openai/gpt-4o-2024-08-06

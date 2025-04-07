@@ -1,6 +1,8 @@
 # Animal Harm Assessment (AHA) Benchmark
 
 This is a modification of the AHA benchmark. Many of the scorer instructions were not relevant or overly penalizing models that have not undergone lots of post-training. Only the scorer.py files has been modified.
+
+
 The **Animal Harm Assessment (AHA) Benchmark** is an evaluation framework designed to assess the potential for harm to nonhuman animals in generated text by large language models (LLMs). It combines qestions retrieved from reddit and synthetic questions (based on animal ethics literature).
 
 For more information, see preprint: 

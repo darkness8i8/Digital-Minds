@@ -2,7 +2,7 @@
 """
 Main module for the AHA evaluation.
 """
-import argparse, logging, os, random, time
+import argparse, logging, os, random, time, json
 from pathlib import Path
 from typing import List, Dict, Any, Set
 import pandas as pd
@@ -41,16 +41,16 @@ class Config:
         self.start_batch = args.start_batch
         self.current_batch = 1
         self.calculate_judge_harshness = args.calculate_judge_harshness
-        self.openai_base_url = args.openai_base_url
+        self.model_kwargs = json.loads(args.model_kwargs) if args.model_kwargs else {}
 
 def setup_environment(conf: Config) -> None:
     mkd(conf.output_dir)
     random.seed(conf.seed)
     
-    # Set model environment variable
-    os.environ["INSPECT_EVAL_MODEL"] = conf.model
+    # Configure model environment
+    setup_hf_model_environment(conf.model, conf)
     
-    # Handle custom OpenAI-compatible endpoints
+    # Handle custom OpenAI-compatible endpoints if specified
     if conf.openai_base_url:
         os.environ["OPENAI_BASE_URL"] = conf.openai_base_url
         if not os.environ.get("OPENAI_API_KEY"):
@@ -58,6 +58,32 @@ def setup_environment(conf: Config) -> None:
     
     logging.info(f"AHA: {conf.num_batches}x{conf.batch_size}, model={conf.model}")
     logging.info(f"temp={conf.model_temperature}, judge_temp={conf.judge_temperature}, seed={conf.seed}")
+
+def setup_hf_model_environment(model_name: str, conf: Config) -> None:
+    """Configure environment for Hugging Face models."""
+    # Check if it's a Hugging Face model (contains a '/' but not from known providers)
+    known_providers = {'anthropic', 'openai', 'google', 'cohere'}
+    parts = model_name.split('/')
+    
+    if len(parts) == 2 and parts[0].lower() not in known_providers:
+        # It's a Hugging Face model
+        logging.info(f"Detected Hugging Face model: {model_name}")
+        
+        # Set model environment variables for inspect-ai's vLLM provider
+        os.environ["INSPECT_EVAL_PROVIDER"] = "vllm"
+        os.environ["INSPECT_EVAL_MODEL"] = model_name
+        
+        # Set vLLM specific configurations if provided
+        if conf.model_kwargs:
+            os.environ["VLLM_MODEL_KWARGS"] = json.dumps(conf.model_kwargs)
+            
+        # Set default tensor parallel degree if using vLLM
+        if not os.environ.get("VLLM_TP_SIZE"):
+            os.environ["VLLM_TP_SIZE"] = "1"
+            
+    else:
+        # For non-HF models, just set the model name
+        os.environ["INSPECT_EVAL_MODEL"] = model_name
 
 def load_and_sample_data(conf: Config, data: List[Dict[str,Any]], used: Set[int]) -> Path:
     if conf.shuffle:
@@ -145,6 +171,8 @@ def main():
     p.add_argument("--run-analysis", action="store_true")
     p.add_argument("--start-batch", type=int, default=0)
     p.add_argument("--calculate_judge_harshness", action="store_true", help="If set, judge harshness is calculated from data.")
+    p.add_argument("--model-kwargs", type=str, default=None,
+                  help="JSON string of additional kwargs for model initialization")
     args = p.parse_args()
 
     global config, dataset_path

@@ -19,6 +19,13 @@ from utils import (
     get_latest_file, combine_csv_files
 )
 
+# Import and register the Hugging Face vLLM provider
+try:
+    from hf_vllm_provider import register_huggingface_vllm_provider
+    register_huggingface_vllm_provider()
+except ImportError:
+    logging.warning("Failed to import HF vLLM provider. HF models may not work correctly.")
+
 setup_logging(logging.INFO)
 logging.getLogger("inspect_ai.model").setLevel(logging.INFO)
 config = None
@@ -52,23 +59,23 @@ def setup_environment(conf: Config) -> None:
     known_providers = {'anthropic', 'openai', 'google', 'cohere'}
     
     if len(parts) == 2 and parts[0].lower() not in known_providers:
-        # It's a Hugging Face model - set up vLLM provider
-        os.environ["INSPECT_EVAL_PROVIDER"] = "vllm"
-        # vLLM expects the full model path
-        os.environ["INSPECT_EVAL_MODEL"] = conf.model
+        # It's a Hugging Face model - set up vLLM configuration
+        # Set model temperature for vLLM
+        if conf.model_temperature is not None:
+            os.environ["VLLM_TEMPERATURE"] = str(conf.model_temperature)
         
         # Set default tensor parallel degree if not set
         if not os.environ.get("VLLM_TP_SIZE"):
             os.environ["VLLM_TP_SIZE"] = "1"
-            
-        # Set model temperature for vLLM
-        if conf.model_temperature is not None:
-            os.environ["VLLM_TEMPERATURE"] = str(conf.model_temperature)
-            
+        
+        # Set seed for vLLM
+        if conf.seed is not None:
+            os.environ["VLLM_SEED"] = str(conf.seed)
+        
         logging.info(f"Using vLLM provider for Hugging Face model: {conf.model}")
-    else:
-        # For non-HF models, just set the model name
-        os.environ["INSPECT_EVAL_MODEL"] = conf.model
+    
+    # Set model environment variable
+    os.environ["INSPECT_EVAL_MODEL"] = conf.model
     
     # Handle custom OpenAI-compatible endpoints
     if conf.openai_base_url:

@@ -57,8 +57,8 @@ def setup_environment(conf: Config) -> None:
         # should be set by the adapter script before this point.
         # We can set defaults here only if they aren't already set.
         os.environ.setdefault("VLLM_TP_SIZE", "1")
-        if conf.model_temperature is not None and conf.model_temperature.lower() != "none":
-            os.environ.setdefault("VLLM_TEMPERATURE", str(conf.model_temperature))
+        if conf.model_temperature is not None:
+             os.environ.setdefault("VLLM_TEMPERATURE", str(conf.model_temperature))
         if conf.seed is not None:
              os.environ.setdefault("VLLM_SEED", str(conf.seed))
     else:

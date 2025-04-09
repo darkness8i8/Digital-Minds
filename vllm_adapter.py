@@ -35,11 +35,13 @@ if __name__ == "__main__":
 
         # Parse specific args needed for VLLM env vars, again using parse_known_args
         vllm_arg_parser = argparse.ArgumentParser(add_help=False)
+        # Keep --model_temperature as string here to check for "none" before aha.py converts it
         vllm_arg_parser.add_argument("--model_temperature")
         vllm_arg_parser.add_argument("--seed")
         vllm_args, _ = vllm_arg_parser.parse_known_args()
 
         # Set VLLM env vars if provided
+        # Check the string value before it's converted to float by aha.py
         if vllm_args.model_temperature is not None and vllm_args.model_temperature.lower() != "none":
              os.environ["VLLM_TEMPERATURE"] = vllm_args.model_temperature
         if vllm_args.seed is not None:

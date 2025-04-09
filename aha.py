@@ -203,9 +203,9 @@ def main():
             if config.model.startswith("vllm/"):
                 logging.info("Preparing model_args for vLLM provider...")
                 model_args_dict = {
-                    "max_model_len": 8192,          # Set max sequence length
-                    "gpu_memory_utilization": 0.95  # Set GPU memory utilization
-                    # Add other vLLM init args here if needed, e.g., "dtype": "float16"
+                    "max_model_len": 8192,
+                    "gpu_memory_utilization": 0.95,
+                    "trust_remote_code": True
                 }
                 logging.info(f"Passing model_args to eval(): {model_args_dict}")
             # ------------------------------------

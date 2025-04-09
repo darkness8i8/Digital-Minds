@@ -30,9 +30,6 @@ if __name__ == "__main__":
     if is_hf_model:
         logging.info(f"Setting up environment for vLLM with HuggingFace model: {pre_args.model}")
 
-        # Set the provider BEFORE inspect_ai initializes
-        os.environ["INSPECT_EVAL_PROVIDER"] = "vllm"
-
         # Parse specific args needed for VLLM env vars, again using parse_known_args
         vllm_arg_parser = argparse.ArgumentParser(add_help=False)
         # Keep --model_temperature as string here to check for "none" before aha.py converts it

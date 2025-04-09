@@ -13,16 +13,7 @@ nest_asyncio.apply()
 from inspect_ai import Task, task, eval
 from inspect_ai.dataset import Sample, json_dataset
 from inspect_ai.model import Model, get_model, GenerateConfig
-# --- Try to import vLLM provider components ---
-try:
-    # Adjust the import path based on inspect-ai's actual structure if needed
-    from inspect_ai.model._providers.vllm import VLLMProvider, VLLMArgs
-    vllm_available = True
-    logging.info("Successfully imported VLLMProvider and VLLMArgs from inspect_ai.")
-except ImportError:
-    vllm_available = False
-    logging.warning("Could not import vLLM provider components (VLLMProvider, VLLMArgs) from inspect_ai. vLLM models won't work directly.")
-# --- End vLLM import ---
+from inspect_ai.solver import generate
 from scoring import SOLVER_INSTRUCTIONS, final_digit_model_graded_qa
 from utils import (
     setup_logging, mkd, read_json, write_json,

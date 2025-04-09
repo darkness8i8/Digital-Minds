@@ -48,37 +48,46 @@ def setup_environment(conf: Config) -> None:
     mkd(conf.output_dir)
     random.seed(conf.seed)
 
-    # Always set the model name based on the config
     os.environ["INSPECT_EVAL_MODEL"] = conf.model
+    logging.info(f"INSPECT_EVAL_MODEL set to: '{conf.model}'")
+    logging.info(f"AHA Config: Judges='{','.join(conf.judges)}'")
+    logging.info(f"AHA Config: Batches={conf.num_batches}x{conf.batch_size}, Seed={conf.seed}")
+    logging.info(f"AHA Config: Temp(Model)={conf.model_temperature}, Temp(Judge)={conf.judge_temperature}")
 
-    # If vLLM provider is set externally (by an adapter), log it
-    if os.environ.get("INSPECT_EVAL_PROVIDER") == "vllm":
-        logging.info(f"vLLM provider configuration detected for model: {conf.model}")
-        # VLLM specific env vars like VLLM_TEMPERATURE, VLLM_SEED, VLLM_TP_SIZE
-        # should be set by the adapter script before this point.
-        # We can set defaults here only if they aren't already set.
-        os.environ.setdefault("VLLM_TP_SIZE", "1")
+    if conf.model.startswith("vllm/"):
+        logging.info("vLLM provider detected. Setting VLLM environment variables...")
+
+        # Option A: Slightly increase memory utilization (e.g., to 95%)
+        os.environ.setdefault("VLLM_GPU_MEMORY_UTILIZATION", "0.95")
+
+        # Option B: Explicitly set max_model_len (Highly Recommended for this error)
+        # Use a reasonable value for the specific model, e.g., 8192 for Llama 3.1 8B
+        os.environ.setdefault("VLLM_MAX_MODEL_LEN", "8192")
+        logging.info(f"Setting VLLM_MAX_MODEL_LEN=8192")
+
+        # Set temperature and seed if provided
         if conf.model_temperature is not None:
-             os.environ.setdefault("VLLM_TEMPERATURE", str(conf.model_temperature))
+             os.environ["VLLM_TEMPERATURE"] = str(conf.model_temperature)
         if conf.seed is not None:
-             os.environ.setdefault("VLLM_SEED", str(conf.seed))
-    else:
-         logging.info(f"Using provider: {os.environ.get('INSPECT_EVAL_PROVIDER', 'default (will be inferred by inspect-ai)')}")
+             os.environ["VLLM_SEED"] = str(conf.seed)
 
-    # Handle custom OpenAI-compatible endpoints (but not if vLLM provider is explicitly set for the main model)
+        # Set other defaults if needed
+        os.environ.setdefault("VLLM_TP_SIZE", "1") # Tensor Parallelism
+        os.environ.setdefault("VLLM_MAX_TOKENS", "1000") # Default max generation length
+
+        vllm_vars = {k: os.environ[k] for k in os.environ if k.startswith("VLLM_")}
+        logging.info(f"VLLM environment variables: {vllm_vars}")
+
+    elif conf.model.startswith("hf/"):
+        logging.info("Hugging Face (hf) provider detected. Setting HF environment variables...")
+        # os.environ.setdefault("HF_DEVICE", "cuda" if torch.cuda.is_available() else "cpu")
+        hf_vars = {k: os.environ[k] for k in os.environ if k.startswith("HF_")}
+        logging.info(f"HF environment variables: {hf_vars}")
+
     if conf.openai_base_url:
-        if os.environ.get("INSPECT_EVAL_PROVIDER") == "vllm":
-             logging.warning("Ignoring --openai-base-url for main model evaluation as vLLM provider is explicitly used.")
-        else:
-            # Assume this base URL is for the main model if vLLM isn't set
-            logging.info(f"Setting up OpenAI provider with base URL: {conf.openai_base_url}")
-            os.environ["INSPECT_EVAL_PROVIDER"] = "openai" # Explicitly set provider
-            os.environ["OPENAI_BASE_URL"] = conf.openai_base_url
-            if not os.environ.get("OPENAI_API_KEY"):
-                 # vLLM's OpenAI endpoint often doesn't need a key, but inspect-ai might check
-                 os.environ["OPENAI_API_KEY"] = "DUMMY_KEY_FOR_VLLM"
-                 logging.warning("Setting dummy OPENAI_API_KEY for custom base URL.")
-                 # raise ValueError("OPENAI_API_KEY environment variable must be set when using custom OpenAI-compatible endpoints")
+         logging.info(f"Setting OPENAI_BASE_URL for potential use by providers (e.g., judges): {conf.openai_base_url}")
+         os.environ["OPENAI_BASE_URL"] = conf.openai_base_url
+         os.environ.setdefault("OPENAI_API_KEY", "DUMMY_KEY_FOR_ENDPOINT")
 
     logging.info(f"AHA: {conf.num_batches}x{conf.batch_size}, model={conf.model}")
     logging.info(f"temp={conf.model_temperature}, judge_temp={conf.judge_temperature}, seed={conf.seed}")

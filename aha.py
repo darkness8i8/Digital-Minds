@@ -19,13 +19,6 @@ from utils import (
     get_latest_file, combine_csv_files
 )
 
-# Import and register the Hugging Face vLLM provider
-try:
-    from hf_vllm_provider import register_huggingface_vllm_provider
-    register_huggingface_vllm_provider()
-except ImportError:
-    logging.warning("Failed to import HF vLLM provider. HF models may not work correctly.")
-
 setup_logging(logging.INFO)
 logging.getLogger("inspect_ai.model").setLevel(logging.INFO)
 config = None
@@ -53,36 +46,39 @@ class Config:
 def setup_environment(conf: Config) -> None:
     mkd(conf.output_dir)
     random.seed(conf.seed)
-    
-    # Check if it's a Hugging Face model
-    parts = conf.model.split('/')
-    known_providers = {'anthropic', 'openai', 'google', 'cohere'}
-    
-    if len(parts) == 2 and parts[0].lower() not in known_providers:
-        # It's a Hugging Face model - set up vLLM configuration
-        # Set model temperature for vLLM
-        if conf.model_temperature is not None:
-            os.environ["VLLM_TEMPERATURE"] = str(conf.model_temperature)
-        
-        # Set default tensor parallel degree if not set
-        if not os.environ.get("VLLM_TP_SIZE"):
-            os.environ["VLLM_TP_SIZE"] = "1"
-        
-        # Set seed for vLLM
-        if conf.seed is not None:
-            os.environ["VLLM_SEED"] = str(conf.seed)
-        
-        logging.info(f"Using vLLM provider for Hugging Face model: {conf.model}")
-    
-    # Set model environment variable
+
+    # Always set the model name based on the config
     os.environ["INSPECT_EVAL_MODEL"] = conf.model
-    
-    # Handle custom OpenAI-compatible endpoints
+
+    # If vLLM provider is set externally (by an adapter), log it
+    if os.environ.get("INSPECT_EVAL_PROVIDER") == "vllm":
+        logging.info(f"vLLM provider configuration detected for model: {conf.model}")
+        # VLLM specific env vars like VLLM_TEMPERATURE, VLLM_SEED, VLLM_TP_SIZE
+        # should be set by the adapter script before this point.
+        # We can set defaults here only if they aren't already set.
+        os.environ.setdefault("VLLM_TP_SIZE", "1")
+        if conf.model_temperature is not None and conf.model_temperature.lower() != "none":
+            os.environ.setdefault("VLLM_TEMPERATURE", str(conf.model_temperature))
+        if conf.seed is not None:
+             os.environ.setdefault("VLLM_SEED", str(conf.seed))
+    else:
+         logging.info(f"Using provider: {os.environ.get('INSPECT_EVAL_PROVIDER', 'default (will be inferred by inspect-ai)')}")
+
+    # Handle custom OpenAI-compatible endpoints (but not if vLLM provider is explicitly set for the main model)
     if conf.openai_base_url:
-        os.environ["OPENAI_BASE_URL"] = conf.openai_base_url
-        if not os.environ.get("OPENAI_API_KEY"):
-            raise ValueError("OPENAI_API_KEY environment variable must be set when using custom OpenAI-compatible endpoints")
-    
+        if os.environ.get("INSPECT_EVAL_PROVIDER") == "vllm":
+             logging.warning("Ignoring --openai-base-url for main model evaluation as vLLM provider is explicitly used.")
+        else:
+            # Assume this base URL is for the main model if vLLM isn't set
+            logging.info(f"Setting up OpenAI provider with base URL: {conf.openai_base_url}")
+            os.environ["INSPECT_EVAL_PROVIDER"] = "openai" # Explicitly set provider
+            os.environ["OPENAI_BASE_URL"] = conf.openai_base_url
+            if not os.environ.get("OPENAI_API_KEY"):
+                 # vLLM's OpenAI endpoint often doesn't need a key, but inspect-ai might check
+                 os.environ["OPENAI_API_KEY"] = "DUMMY_KEY_FOR_VLLM"
+                 logging.warning("Setting dummy OPENAI_API_KEY for custom base URL.")
+                 # raise ValueError("OPENAI_API_KEY environment variable must be set when using custom OpenAI-compatible endpoints")
+
     logging.info(f"AHA: {conf.num_batches}x{conf.batch_size}, model={conf.model}")
     logging.info(f"temp={conf.model_temperature}, judge_temp={conf.judge_temperature}, seed={conf.seed}")
 

@@ -55,28 +55,21 @@ def setup_environment(conf: Config) -> None:
     logging.info(f"AHA Config: Temp(Model)={conf.model_temperature}, Temp(Judge)={conf.judge_temperature}")
 
     if conf.model.startswith("vllm/"):
-        logging.info("vLLM provider detected. Setting VLLM environment variables...")
+        logging.info("vLLM provider detected. Setting VLLM environment variables for generation params...")
 
-        # Option A: Slightly increase memory utilization (e.g., to 95%)
-        os.environ.setdefault("VLLM_GPU_MEMORY_UTILIZATION", "0.95")
-
-        # Option B: Explicitly set max_model_len (Highly Recommended for this error)
-        # Use a reasonable value for the specific model, e.g., 8192 for Llama 3.1 8B
-        os.environ.setdefault("VLLM_MAX_MODEL_LEN", "8192")
-        logging.info(f"Setting VLLM_MAX_MODEL_LEN=8192")
-
-        # Set temperature and seed if provided
+        # Keep temperature and seed env vars for now, though they might be redundant
+        # if generate() passes them correctly.
         if conf.model_temperature is not None:
              os.environ["VLLM_TEMPERATURE"] = str(conf.model_temperature)
         if conf.seed is not None:
              os.environ["VLLM_SEED"] = str(conf.seed)
 
-        # Set other defaults if needed
-        os.environ.setdefault("VLLM_TP_SIZE", "1") # Tensor Parallelism
-        os.environ.setdefault("VLLM_MAX_TOKENS", "1000") # Default max generation length
+        # Keep TP_SIZE and MAX_TOKENS as they might affect initialization or defaults
+        os.environ.setdefault("VLLM_TP_SIZE", "1")
+        os.environ.setdefault("VLLM_MAX_TOKENS", "1000")
 
         vllm_vars = {k: os.environ[k] for k in os.environ if k.startswith("VLLM_")}
-        logging.info(f"VLLM environment variables: {vllm_vars}")
+        logging.info(f"Remaining VLLM environment variables: {vllm_vars}")
 
     elif conf.model.startswith("hf/"):
         logging.info("Hugging Face (hf) provider detected. Setting HF environment variables...")
@@ -184,7 +177,8 @@ def main():
 
     global config, dataset_path
     config = Config(args)
-    setup_environment(config)
+    os.environ["INSPECT_EVAL_MODEL"] = config.model # Set model name globally
+    setup_environment(config) # Setup other env vars
 
     try:
         full_data = read_json(config.dataset_path)
@@ -204,8 +198,26 @@ def main():
             sampled_files.append(sfile)
             dataset_path = sfile
             
-            logging.info(f"Processing batch {config.current_batch}/{config.num_batches}")
-            eval("aha_evaluation")  # uses the nest_asyncio-patched loop
+            # --- Create model_args dictionary ---
+            model_args_dict = {}
+            if config.model.startswith("vllm/"):
+                logging.info("Preparing model_args for vLLM provider...")
+                model_args_dict = {
+                    "max_model_len": 8192,          # Set max sequence length
+                    "gpu_memory_utilization": 0.95  # Set GPU memory utilization
+                    # Add other vLLM init args here if needed, e.g., "dtype": "float16"
+                }
+                logging.info(f"Passing model_args to eval(): {model_args_dict}")
+            # ------------------------------------
+
+            logging.info(f"Processing batch {config.current_batch}/{config.num_batches} using dataset: {dataset_path}")
+            try:
+                 # Pass model_args dictionary to eval()
+                 eval_result = eval("aha_evaluation", model_args=model_args_dict)
+                 logging.info(f"Finished evaluation for batch {config.current_batch}.")
+            except Exception as e:
+                logging.error(f"Error evaluating batch {config.current_batch}: {e}")
+                continue
             
             if config.run_analysis:
                 ldir = Path("./logs")

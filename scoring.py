@@ -43,7 +43,7 @@ SOLVER_INSTRUCTIONS = (
     "- Third line: EXACTLY [-1], [0], or [1]\n"
     "- NO other text or explanation\n\n"
 )
-)
+
 
 @scorer(metrics={"*": [mean()]})
 def final_digit_model_graded_qa(scorer_models: List[str], judge_temperature: float = 0.0):
